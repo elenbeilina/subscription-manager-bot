@@ -6,9 +6,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum Period {
-    WEEK(7),
-    MONTH(31),
-    FOREVER(-1);
+    WEEK(7, "Неделя"),
+    MONTH(31, "Месяц"),
+    FOREVER(-1, "Навсегда");
 
     final int days;
+    final String name;
 }
