@@ -1,84 +1,47 @@
 package com.aqualen.subscriptionchanneltelegrambot.logic;
 
-import com.aqualen.subscriptionchanneltelegrambot.entity.Channel;
-import com.aqualen.subscriptionchanneltelegrambot.entity.PaymentType;
 import com.aqualen.subscriptionchanneltelegrambot.entity.Period;
 import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.props.BotProperties;
-import com.aqualen.subscriptionchanneltelegrambot.props.PaymentProperties;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.FileCopyUtils;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery;
-import org.telegram.telegrambots.meta.api.methods.invoices.SendInvoice;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.payments.LabeledPrice;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 import static com.aqualen.subscriptionchanneltelegrambot.entity.Period.subscriptionPeriod;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static com.aqualen.subscriptionchanneltelegrambot.logic.ChannelService.CHOOSE_CHANNEL_MESSAGE;
+import static com.aqualen.subscriptionchanneltelegrambot.logic.PaymentService.CHOOSE_PAYMENT_MESSAGE;
+import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.generateButtons;
 
-
+@Slf4j
 @Component
 public class SubscriptionBot extends TelegramLongPollingBot {
 
+    private static final String USER_NOT_FOUND_EXC = "User with username %s was not found!";
     private final BotProperties botProperties;
-    private final PaymentProperties paymentProperties;
-
-    private final Map<String, String> channelNames;
-    private final Map<String, String> paymentTypes;
+    private final ChannelService channelService;
+    private final PaymentService paymentService;
     Map<String, User> usersCache = new HashMap<>();
 
     public SubscriptionBot(@Value("${bot.token}") String botToken,
-                           PaymentProperties paymentProperties,
                            BotProperties botProperties,
-                           @Value("classpath:channel-info.json")
-                           Resource channelInfoFile,
-                           @Value("classpath:payment-type.json")
-                           Resource paymentTypeFile
-    ) {
+                           ChannelService channelService,
+                           PaymentService paymentService) {
         super(botToken);
         this.botProperties = botProperties;
-        this.paymentProperties = paymentProperties;
-        channelNames = getChannelNames(channelInfoFile);
-        paymentTypes = getPaymentTypes(paymentTypeFile);
-    }
-
-    private Map<String, String> getChannelNames(Resource channelInfoFile) {
-        List<Channel> channelList = resourceToObjectConverter(channelInfoFile, new TypeReference<>() {
-        });
-        return channelList.stream().collect(Collectors.toMap(channel ->
-                Channel.CHANNEL + channel.getName(), Channel::getDisplayName));
-    }
-
-    private Map<String, String> getPaymentTypes(Resource paymentTypeFile) {
-        List<PaymentType> paymentTypeList = resourceToObjectConverter(paymentTypeFile, new TypeReference<>() {
-        });
-        return paymentTypeList.stream().collect(Collectors.toMap(paymentType ->
-                PaymentType.PAYMENT + paymentType.getType(), PaymentType::getName)
-        );
-    }
-
-    @SneakyThrows
-    public <T> T resourceToObjectConverter(Resource resource, TypeReference<T> object) {
-        try (Reader reader = new InputStreamReader(resource.getInputStream(), UTF_8)) {
-            String json = FileCopyUtils.copyToString(reader);
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(json, object);
-        }
+        this.channelService = channelService;
+        this.paymentService = paymentService;
     }
 
     @Override
@@ -90,63 +53,11 @@ public class SubscriptionBot extends TelegramLongPollingBot {
     @SneakyThrows
     public void onUpdateReceived(Update update) {
         if (update.hasMessage()) {
-            var message = update.getMessage();
-            var chatId = message.getChatId();
-
-            if (message.hasText() && message.getText().equals("/start")) {
-                sendButtons(chatId, "Выберите канал:", channelNames);
-            }
-            if (Objects.nonNull(message.getSuccessfulPayment()) &&
-                    !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
-                execute(new SendMessage(String.valueOf(chatId), "Добавляю в канал!"));
-            }
+            initiateMessageAction(update);
         }
 
         if (update.hasCallbackQuery()) {
-            String username = update.getCallbackQuery().getFrom().getUserName();
-            String data = update.getCallbackQuery().getData();
-            var chatId = update.getCallbackQuery().getMessage().getChatId();
-
-            if (data.contains("channel")) {
-                usersCache.put(username, User.builder()
-                        .username(username)
-                        .channelName(data)
-                        .build());
-                sendButtons(chatId, "Выберите период подписки:", subscriptionPeriod);
-            }
-
-            if (EnumUtils.isValidEnum(Period.class, data)) {
-                User user = usersCache.get(username);
-                if (Objects.nonNull(user)) {
-                    user.setPeriod(Period.valueOf(data));
-                    usersCache.put(username, user);
-                    sendButtons(chatId, "Выберите тип оплаты:", paymentTypes);
-                } else {
-                    sendButtons(chatId, "Выберите канал:", channelNames);
-                }
-            }
-
-            if (data.contains("payment")) {
-                User user = usersCache.get(username);
-                if (Objects.nonNull(user)) {
-                    execute(SendInvoice.builder()
-                            .chatId(chatId)
-                            .title("Оплата подписки.")
-                            .description(String.format("Канал: %s на период: %s.",
-                                    channelNames.get(user.getChannelName()),
-                                    user.getPeriod().getName()))
-                            .currency("RUB")
-                            .startParameter("test")
-                            .providerToken(paymentProperties.getYoomoneyToken())
-                            .payload(String.format("Канал: %s, период: %s, юзер: %s.",
-                                    channelNames.get(user.getChannelName()),
-                                    user.getPeriod().getName(), user.getUsername()))
-                            .price(LabeledPrice.builder().label(user.getPeriod().getName()).amount(100 * 100).build()
-                            ).build());
-                } else {
-                    sendButtons(chatId, "Выберите канал:", channelNames);
-                }
-            }
+            initiateCallbackAction(update);
         }
 
         if (update.hasPreCheckoutQuery()) {
@@ -156,21 +67,57 @@ public class SubscriptionBot extends TelegramLongPollingBot {
         }
     }
 
-    private List<List<InlineKeyboardButton>> generateButtons(Map<?, String> buttons) {
-        List<List<InlineKeyboardButton>> rowsOfButtons = new ArrayList<>();
-        for (Map.Entry<?, String> button : buttons.entrySet()) {
-            List<InlineKeyboardButton> rowInline = new ArrayList<>();
+    @SneakyThrows
+    private void initiateMessageAction(Update update) {
+        var message = update.getMessage();
+        var chatId = message.getChatId();
 
-            rowInline.add(
-                    InlineKeyboardButton.builder()
-                            .text(button.getValue())
-                            .callbackData(button.getKey().toString())
-                            .pay(true).build()
-            );
-
-            rowsOfButtons.add(rowInline);
+        if (message.hasText() && message.getText().equals("/start")) {
+            sendButtons(chatId, CHOOSE_CHANNEL_MESSAGE, channelService.getChannelNames());
         }
-        return rowsOfButtons;
+        if (Objects.nonNull(message.getSuccessfulPayment()) &&
+                !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
+            execute(new SendMessage(String.valueOf(chatId), "Добавляю в канал!"));
+        }
+    }
+
+    private void initiateCallbackAction(Update update) {
+        var username = update.getCallbackQuery().getFrom().getUserName();
+        var chatId = update.getCallbackQuery().getMessage().getChatId();
+        var data = update.getCallbackQuery().getData();
+
+        try {
+            if (data.contains("channel")) {
+                usersCache.put(username, User.builder()
+                        .username(username)
+                        .channelName(data)
+                        .build());
+                sendButtons(chatId, Period.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
+            }
+
+            if (EnumUtils.isValidEnum(Period.class, data)) {
+                User user = usersCache.get(username);
+                if (Objects.nonNull(user)) {
+                    user.setPeriod(Period.valueOf(data));
+                    usersCache.put(username, user);
+                    sendButtons(chatId, CHOOSE_PAYMENT_MESSAGE, paymentService.getPaymentTypes());
+                } else {
+                    throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
+                }
+            }
+
+            if (data.contains("payment")) {
+                User user = usersCache.get(username);
+                if (Objects.nonNull(user)) {
+                    execute(paymentService.generateInvoice(chatId, user));
+                } else {
+                    throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
+                }
+            }
+        } catch (TelegramApiException e) {
+            log.warn(e.getMessage(), e);
+            sendButtons(chatId, CHOOSE_CHANNEL_MESSAGE, channelService.getChannelNames());
+        }
     }
 
     @SneakyThrows

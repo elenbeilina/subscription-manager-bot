@@ -16,6 +16,8 @@ public enum Period {
     final int days;
     final String name;
 
+    public static final String CHOOSE_PERIOD_MESSAGE = "Выберите период подписки:";
+
     public static final Map<Period, String> subscriptionPeriod = new TreeMap<>(Map.of(
             WEEK, WEEK.getName(),
             MONTH, MONTH.getName(),
