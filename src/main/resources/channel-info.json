@@ -1,0 +1,11 @@
+[
+  {
+    "name": "test",
+    "displayName": "Тестовый канал",
+    "subscriptionCost": {
+      "WEEK": 5000,
+      "MONTH": 10000,
+      "FOREVER": 90000
+    }
+  }
+]
