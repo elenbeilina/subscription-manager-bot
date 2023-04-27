@@ -17,23 +17,24 @@ import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.resourceT
 @Service
 public class ChannelService {
 
-    private final Map<String, String> channelNames;
-    private final List<Channel> channelList;
     public static final String CHOOSE_CHANNEL_MESSAGE = "Выберите канал:";
+    private final Map<String, String> channelNames;
+    private final Map<String, Channel> channels;
 
     public ChannelService(@Value("classpath:channel-info.json")
                           Resource channelInfoFile) {
-        channelList = getChannels(channelInfoFile);
-        channelNames = getChannelNames(channelList);
+        channels = getChannels(channelInfoFile);
+        channelNames = getChannelNames(channels);
     }
 
-    private List<Channel> getChannels(Resource channelInfoFile) {
-        return resourceToObjectConverter(channelInfoFile, new TypeReference<>() {
+    private Map<String, Channel> getChannels(Resource channelInfoFile) {
+        List<Channel> channelList = resourceToObjectConverter(channelInfoFile, new TypeReference<>() {
         });
+        return channelList.stream().collect(Collectors.toMap(Channel::getName, channel -> channel));
     }
 
-    private Map<String, String> getChannelNames(List<Channel> channelList) {
-        return channelList.stream().collect(Collectors.toMap(channel ->
-                Channel.CHANNEL + channel.getName(), Channel::getDisplayName));
+    private Map<String, String> getChannelNames(Map<String, Channel> channels) {
+        return channels.values().stream().collect(Collectors.toMap(channel ->
+                Channel.CHANNEL_PREFIX + channel.getName(), Channel::getDisplayName));
     }
 }

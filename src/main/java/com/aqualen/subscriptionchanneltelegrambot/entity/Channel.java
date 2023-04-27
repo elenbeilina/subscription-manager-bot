@@ -1,5 +1,6 @@
 package com.aqualen.subscriptionchanneltelegrambot.entity;
 
+import com.aqualen.subscriptionchanneltelegrambot.enums.Periods;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,7 +15,7 @@ import java.util.Map;
 public class Channel {
     String name;
     String displayName;
-    Map<Period, Integer> subscriptionCost;
+    Map<Periods, Integer> subscriptionCost;
 
-    public static String CHANNEL = "channel_";
+    public static final String CHANNEL_PREFIX = "channel_";
 }

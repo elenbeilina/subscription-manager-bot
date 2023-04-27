@@ -3,8 +3,8 @@
     "name": "test",
     "displayName": "Тестовый канал",
     "subscriptionCost": {
-      "WEEK": 5000,
-      "MONTH": 10000,
+      "WEEK": 10000,
+      "MONTH": 30000,
       "FOREVER": 90000
     }
   }

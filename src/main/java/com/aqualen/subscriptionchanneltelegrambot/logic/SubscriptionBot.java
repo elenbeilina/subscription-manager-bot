@@ -1,6 +1,7 @@
 package com.aqualen.subscriptionchanneltelegrambot.logic;
 
-import com.aqualen.subscriptionchanneltelegrambot.entity.Period;
+import com.aqualen.subscriptionchanneltelegrambot.enums.PaymentTypes;
+import com.aqualen.subscriptionchanneltelegrambot.enums.Periods;
 import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.props.BotProperties;
 import lombok.SneakyThrows;
@@ -19,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import static com.aqualen.subscriptionchanneltelegrambot.entity.Period.subscriptionPeriod;
+import static com.aqualen.subscriptionchanneltelegrambot.enums.Periods.subscriptionPeriod;
 import static com.aqualen.subscriptionchanneltelegrambot.logic.ChannelService.CHOOSE_CHANNEL_MESSAGE;
 import static com.aqualen.subscriptionchanneltelegrambot.logic.PaymentService.CHOOSE_PAYMENT_MESSAGE;
 import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.generateButtons;
@@ -28,7 +29,7 @@ import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.generateB
 @Component
 public class SubscriptionBot extends TelegramLongPollingBot {
 
-    private static final String USER_NOT_FOUND_EXC = "User with username %s was not found!";
+    public static final String USER_NOT_FOUND_EXC = "User with username %s was not found!";
     private final BotProperties botProperties;
     private final ChannelService channelService;
     private final PaymentService paymentService;
@@ -92,13 +93,13 @@ public class SubscriptionBot extends TelegramLongPollingBot {
                         .username(username)
                         .channelName(data)
                         .build());
-                sendButtons(chatId, Period.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
+                sendButtons(chatId, Periods.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
             }
 
-            if (EnumUtils.isValidEnum(Period.class, data)) {
+            if (EnumUtils.isValidEnum(Periods.class, data)) {
                 User user = usersCache.get(username);
                 if (Objects.nonNull(user)) {
-                    user.setPeriod(Period.valueOf(data));
+                    user.setPeriods(Periods.valueOf(data));
                     usersCache.put(username, user);
                     sendButtons(chatId, CHOOSE_PAYMENT_MESSAGE, paymentService.getPaymentTypes());
                 } else {
@@ -106,9 +107,10 @@ public class SubscriptionBot extends TelegramLongPollingBot {
                 }
             }
 
-            if (data.contains("payment")) {
+            if (EnumUtils.isValidEnum(PaymentTypes.class, data)) {
                 User user = usersCache.get(username);
                 if (Objects.nonNull(user)) {
+                    user.setPaymentType(PaymentTypes.valueOf(data));
                     execute(paymentService.generateInvoice(chatId, user));
                 } else {
                     throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
