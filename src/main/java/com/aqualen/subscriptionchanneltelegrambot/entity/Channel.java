@@ -13,8 +13,8 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Channel {
+    String id;
     String name;
-    String displayName;
     Map<Periods, Integer> subscriptionCost;
 
     public static final String CHANNEL_PREFIX = "channel_";

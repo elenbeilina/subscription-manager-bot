@@ -14,6 +14,6 @@ import lombok.NoArgsConstructor;
 public class User {
     String username;
     Periods periods;
-    String channelName;
+    String channelId;
     PaymentTypes paymentType;
 }

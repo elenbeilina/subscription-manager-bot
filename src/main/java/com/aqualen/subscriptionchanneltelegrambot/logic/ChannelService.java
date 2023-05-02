@@ -30,11 +30,11 @@ public class ChannelService {
     private Map<String, Channel> getChannels(Resource channelInfoFile) {
         List<Channel> channelList = resourceToObjectConverter(channelInfoFile, new TypeReference<>() {
         });
-        return channelList.stream().collect(Collectors.toMap(Channel::getName, channel -> channel));
+        return channelList.stream().collect(Collectors.toMap(Channel::getId, channel -> channel));
     }
 
     private Map<String, String> getChannelNames(Map<String, Channel> channels) {
         return channels.values().stream().collect(Collectors.toMap(channel ->
-                Channel.CHANNEL_PREFIX + channel.getName(), Channel::getDisplayName));
+                Channel.CHANNEL_PREFIX + channel.getId(), Channel::getName));
     }
 }

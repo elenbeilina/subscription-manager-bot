@@ -1,7 +1,7 @@
 [
   {
-    "name": "test",
-    "displayName": "Тестовый канал",
+    "id": "123",
+    "name": "Тестовый канал",
     "subscriptionCost": {
       "WEEK": 10000,
       "MONTH": 30000,

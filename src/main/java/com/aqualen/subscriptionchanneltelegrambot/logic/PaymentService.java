@@ -37,7 +37,7 @@ public class PaymentService {
 
     public SendInvoice generateInvoice(Long chatId, User user) {
         String periodName = user.getPeriods().getName();
-        String channelName = channelService.getChannelNames().get(user.getChannelName());
+        String channelName = channelService.getChannelNames().get(user.getChannelId());
         return SendInvoice.builder()
                 .chatId(chatId)
                 .title("Оплата подписки.")
@@ -45,7 +45,7 @@ public class PaymentService {
                 .currency("RUB")
                 .startParameter("test")
                 .providerToken(getToken(user))
-                .payload(String.format("Канал: %s, период: %s, юзер: %s.", channelName,
+                .payload(String.format("Канал: %s, период: %s, юзер: %s.", user.getChannelId(),
                         periodName, user.getUsername()))
                 .price(LabeledPrice.builder().label(periodName).amount(getPrice(user)).build()
                 ).build();
@@ -67,7 +67,7 @@ public class PaymentService {
 
     private int getPrice(User user) {
         Map<String, Channel> channels = channelService.getChannels();
-        Channel channel = channels.get(user.getChannelName().replace(CHANNEL_PREFIX, ""));
+        Channel channel = channels.get(user.getChannelId().replace(CHANNEL_PREFIX, ""));
         Map<Periods, Integer> subscriptionCost = channel.getSubscriptionCost();
         return subscriptionCost.get(user.getPeriods());
     }

@@ -1,8 +1,8 @@
 package com.aqualen.subscriptionchanneltelegrambot.logic;
 
+import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.enums.PaymentTypes;
 import com.aqualen.subscriptionchanneltelegrambot.enums.Periods;
-import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.props.BotProperties;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +78,7 @@ public class SubscriptionBot extends TelegramLongPollingBot {
         }
         if (Objects.nonNull(message.getSuccessfulPayment()) &&
                 !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
-            execute(new SendMessage(String.valueOf(chatId), "Добавляю в канал!"));
+            execute(new SendMessage(String.valueOf(chatId), "Adding to the channel!"));
         }
     }
 
@@ -91,7 +91,7 @@ public class SubscriptionBot extends TelegramLongPollingBot {
             if (data.contains("channel")) {
                 usersCache.put(username, User.builder()
                         .username(username)
-                        .channelName(data)
+                        .channelId(data)
                         .build());
                 sendButtons(chatId, Periods.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
             }
