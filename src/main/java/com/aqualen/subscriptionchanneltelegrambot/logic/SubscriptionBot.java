@@ -1,5 +1,6 @@
 package com.aqualen.subscriptionchanneltelegrambot.logic;
 
+import com.aqualen.subscriptionchanneltelegrambot.entity.Channel;
 import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.enums.PaymentTypes;
 import com.aqualen.subscriptionchanneltelegrambot.enums.Periods;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.ChatInviteLink;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -72,49 +74,49 @@ public class SubscriptionBot extends TelegramLongPollingBot {
     private void initiateMessageAction(Update update) {
         var message = update.getMessage();
         var chatId = message.getChatId();
+        var username = message.getChat().getUserName();
 
         if (message.hasText() && message.getText().equals("/start")) {
+            usersCache.put(username, User.builder()
+                    .username(username)
+                    .userId(message.getFrom().getId()).build());
             sendButtons(chatId, CHOOSE_CHANNEL_MESSAGE, channelService.getChannelNames());
         }
         if (Objects.nonNull(message.getSuccessfulPayment()) &&
                 !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
-            execute(new SendMessage(String.valueOf(chatId), "Adding to the channel!"));
+            ChatInviteLink chatInviteLink = execute(channelService.getChatInviteLink(
+                    usersCache.get(username).getChannelId())
+            );
+            execute(SendMessage.builder().text(chatInviteLink.getInviteLink()).build());
         }
     }
 
     private void initiateCallbackAction(Update update) {
         var username = update.getCallbackQuery().getFrom().getUserName();
-        var chatId = update.getCallbackQuery().getMessage().getChatId();
+        var message = update.getCallbackQuery().getMessage();
+        var chatId = message.getChatId();
         var data = update.getCallbackQuery().getData();
-
         try {
-            if (data.contains("channel")) {
-                usersCache.put(username, User.builder()
-                        .username(username)
-                        .channelId(data)
-                        .build());
-                sendButtons(chatId, Periods.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
-            }
-
-            if (EnumUtils.isValidEnum(Periods.class, data)) {
-                User user = usersCache.get(username);
-                if (Objects.nonNull(user)) {
-                    user.setPeriods(Periods.valueOf(data));
-                    usersCache.put(username, user);
-                    sendButtons(chatId, CHOOSE_PAYMENT_MESSAGE, paymentService.getPaymentTypes());
-                } else {
-                    throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
+            User user = usersCache.get(username);
+            if (Objects.nonNull(user)) {
+                if (data.contains(Channel.CHANNEL_PREFIX)) {
+                    user.setChannelId(data);
+                    sendButtons(chatId, Periods.CHOOSE_PERIOD_MESSAGE, subscriptionPeriod);
                 }
-            }
 
-            if (EnumUtils.isValidEnum(PaymentTypes.class, data)) {
-                User user = usersCache.get(username);
-                if (Objects.nonNull(user)) {
+                if (EnumUtils.isValidEnum(Periods.class, data)) {
+                    user.setPeriods(Periods.valueOf(data));
+                    sendButtons(chatId, CHOOSE_PAYMENT_MESSAGE, paymentService.getPaymentTypes());
+                }
+
+                if (EnumUtils.isValidEnum(PaymentTypes.class, data)) {
                     user.setPaymentType(PaymentTypes.valueOf(data));
                     execute(paymentService.generateInvoice(chatId, user));
-                } else {
-                    throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
                 }
+
+                usersCache.put(username, user);
+            } else {
+                throw new TelegramApiException(String.format(USER_NOT_FOUND_EXC, username));
             }
         } catch (TelegramApiException e) {
             log.warn(e.getMessage(), e);

@@ -6,6 +6,7 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.CreateChatInviteLink;
 
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,10 @@ public class ChannelService {
                           Resource channelInfoFile) {
         channels = getChannels(channelInfoFile);
         channelNames = getChannelNames(channels);
+    }
+
+    public CreateChatInviteLink getChatInviteLink(String channelId) {
+        return CreateChatInviteLink.builder().chatId(channelId).memberLimit(1).build();
     }
 
     private Map<String, Channel> getChannels(Resource channelInfoFile) {

@@ -15,8 +15,6 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.aqualen.subscriptionchanneltelegrambot.entity.Channel.CHANNEL_PREFIX;
-
 @Getter
 @Service
 public class PaymentService {
@@ -37,7 +35,7 @@ public class PaymentService {
 
     public SendInvoice generateInvoice(Long chatId, User user) {
         String periodName = user.getPeriods().getName();
-        String channelName = channelService.getChannelNames().get(user.getChannelId());
+        String channelName = channelService.getChannels().get(user.getChannelId()).getName();
         return SendInvoice.builder()
                 .chatId(chatId)
                 .title("Оплата подписки.")
@@ -67,7 +65,7 @@ public class PaymentService {
 
     private int getPrice(User user) {
         Map<String, Channel> channels = channelService.getChannels();
-        Channel channel = channels.get(user.getChannelId().replace(CHANNEL_PREFIX, ""));
+        Channel channel = channels.get(user.getChannelId());
         Map<Periods, Integer> subscriptionCost = channel.getSubscriptionCost();
         return subscriptionCost.get(user.getPeriods());
     }
