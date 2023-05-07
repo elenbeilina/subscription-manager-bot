@@ -2,12 +2,15 @@ package com.aqualen.subscriptionchanneltelegrambot.util;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-import org.springframework.core.io.Resource;
 import org.springframework.util.FileCopyUtils;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.util.ArrayList;
@@ -37,10 +40,12 @@ public class BotUtils {
     }
 
     @SneakyThrows
-    public static <T> T resourceToObjectConverter(Resource resource, TypeReference<T> object) {
-        try (Reader reader = new InputStreamReader(resource.getInputStream(), UTF_8)) {
+    public static <T> T fileToObjectConverter(File file, TypeReference<T> object) {
+        try (Reader reader = new InputStreamReader(new FileInputStream(file), UTF_8)) {
             String json = FileCopyUtils.copyToString(reader);
             ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
             return mapper.readValue(json, object);
         }
     }

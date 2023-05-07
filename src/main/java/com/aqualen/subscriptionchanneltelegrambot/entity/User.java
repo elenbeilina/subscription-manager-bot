@@ -14,11 +14,13 @@ import static com.aqualen.subscriptionchanneltelegrambot.entity.Channel.CHANNEL_
 @AllArgsConstructor
 @NoArgsConstructor
 public class User {
-    Long userId;
-    String username;
-    Periods periods;
-    String channelId;
-    PaymentTypes paymentType;
+
+    private Long userId;
+    private String username;
+    private Periods periods;
+    private String channelId;
+    private PaymentTypes paymentType;
+    private String providerPaymentChargeId;
 
     public void setChannelId(String channelId) {
         this.channelId = channelId.replace(CHANNEL_PREFIX, "");

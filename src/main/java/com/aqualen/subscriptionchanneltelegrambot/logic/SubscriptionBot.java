@@ -35,16 +35,19 @@ public class SubscriptionBot extends TelegramLongPollingBot {
     private final BotProperties botProperties;
     private final ChannelService channelService;
     private final PaymentService paymentService;
+    private final SubscriptionService subscriptionService;
     Map<String, User> usersCache = new HashMap<>();
 
     public SubscriptionBot(@Value("${bot.token}") String botToken,
                            BotProperties botProperties,
                            ChannelService channelService,
-                           PaymentService paymentService) {
+                           PaymentService paymentService,
+                           SubscriptionService subscriptionService) {
         super(botToken);
         this.botProperties = botProperties;
         this.channelService = channelService;
         this.paymentService = paymentService;
+        this.subscriptionService = subscriptionService;
     }
 
     @Override
@@ -84,10 +87,15 @@ public class SubscriptionBot extends TelegramLongPollingBot {
         }
         if (Objects.nonNull(message.getSuccessfulPayment()) &&
                 !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
+            User user = usersCache.get(username);
             ChatInviteLink chatInviteLink = execute(channelService.getChatInviteLink(
-                    usersCache.get(username).getChannelId())
+                    user.getChannelId())
             );
-            execute(SendMessage.builder().text(chatInviteLink.getInviteLink()).build());
+            execute(SendMessage.builder().chatId(chatId).text(chatInviteLink.getInviteLink()).build());
+
+            user.setProviderPaymentChargeId(message.getSuccessfulPayment().getProviderPaymentChargeId());
+            usersCache.put(username, user);
+            subscriptionService.processSubscription(user);
         }
     }
 

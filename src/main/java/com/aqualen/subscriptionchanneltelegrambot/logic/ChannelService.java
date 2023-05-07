@@ -4,15 +4,15 @@ import com.aqualen.subscriptionchanneltelegrambot.entity.Channel;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.CreateChatInviteLink;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.resourceToObjectConverter;
+import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.fileToObjectConverter;
 
 @Getter
 @Service
@@ -22,18 +22,18 @@ public class ChannelService {
     private final Map<String, String> channelNames;
     private final Map<String, Channel> channels;
 
-    public ChannelService(@Value("classpath:channel-info.json")
-                          Resource channelInfoFile) {
+    public ChannelService(@Value("classpath:botData/channel-info.json")
+                          File channelInfoFile) {
         channels = getChannels(channelInfoFile);
         channelNames = getChannelNames(channels);
     }
 
     public CreateChatInviteLink getChatInviteLink(String channelId) {
-        return CreateChatInviteLink.builder().chatId(channelId).memberLimit(1).build();
+        return CreateChatInviteLink.builder().chatId(channelId).build();
     }
 
-    private Map<String, Channel> getChannels(Resource channelInfoFile) {
-        List<Channel> channelList = resourceToObjectConverter(channelInfoFile, new TypeReference<>() {
+    private Map<String, Channel> getChannels(File channelInfoFile) {
+        List<Channel> channelList = fileToObjectConverter(channelInfoFile, new TypeReference<>() {
         });
         return channelList.stream().collect(Collectors.toMap(Channel::getId, channel -> channel));
     }

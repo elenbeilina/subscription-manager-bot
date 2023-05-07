@@ -13,9 +13,9 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Channel {
-    String id;
-    String name;
-    Map<Periods, Integer> subscriptionCost;
-
     public static final String CHANNEL_PREFIX = "channel_";
+
+    private String id;
+    private String name;
+    private Map<Periods, Integer> subscriptionCost;
 }
