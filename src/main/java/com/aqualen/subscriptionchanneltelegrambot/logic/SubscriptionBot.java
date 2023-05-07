@@ -1,6 +1,7 @@
 package com.aqualen.subscriptionchanneltelegrambot.logic;
 
 import com.aqualen.subscriptionchanneltelegrambot.entity.Channel;
+import com.aqualen.subscriptionchanneltelegrambot.entity.Subscriber;
 import com.aqualen.subscriptionchanneltelegrambot.entity.User;
 import com.aqualen.subscriptionchanneltelegrambot.enums.PaymentTypes;
 import com.aqualen.subscriptionchanneltelegrambot.enums.Periods;
@@ -9,15 +10,20 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.BanChatMember;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.UnbanChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.ChatInviteLink;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -87,16 +93,21 @@ public class SubscriptionBot extends TelegramLongPollingBot {
         }
         if (Objects.nonNull(message.getSuccessfulPayment()) &&
                 !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
-            User user = usersCache.get(username);
-            ChatInviteLink chatInviteLink = execute(channelService.getChatInviteLink(
-                    user.getChannelId())
-            );
-            execute(SendMessage.builder().chatId(chatId).text(chatInviteLink.getInviteLink()).build());
-
-            user.setProviderPaymentChargeId(message.getSuccessfulPayment().getProviderPaymentChargeId());
-            usersCache.put(username, user);
-            subscriptionService.processSubscription(user);
+            initSubscriptionActions(usersCache.get(username), chatId, message);
         }
+    }
+
+    @SneakyThrows
+    private void initSubscriptionActions(User user, Long chatId, Message message) {
+        execute(UnbanChatMember.builder().userId(user.getUserId()).chatId(user.getChannelId()).build());
+        ChatInviteLink chatInviteLink = execute(channelService.getChatInviteLink(
+                user.getChannelId())
+        );
+        execute(SendMessage.builder().chatId(chatId).text(chatInviteLink.getInviteLink()).build());
+
+        user.setProviderPaymentChargeId(message.getSuccessfulPayment().getProviderPaymentChargeId());
+        usersCache.put(user.getUsername(), user);
+        subscriptionService.processSubscription(user);
     }
 
     private void initiateCallbackAction(Update update) {
@@ -130,6 +141,30 @@ public class SubscriptionBot extends TelegramLongPollingBot {
             log.warn(e.getMessage(), e);
             sendButtons(chatId, CHOOSE_CHANNEL_MESSAGE, channelService.getChannelNames());
         }
+    }
+
+    @Scheduled(cron = "0 0 * * * ?")
+    public void scheduleRemoveExpiredSubscriptions() {
+        subscriptionService.uploadSubscribersMap();
+
+        for (Map.Entry<String, Subscriber> subscriberEntry : subscriptionService.getSubscriberMap().entrySet()) {
+            Subscriber subscriber = subscriberEntry.getValue();
+            Map<String, Subscriber.Channel> subscribedChannels = subscriber.getChannels();
+
+            for (Map.Entry<String, Subscriber.Channel> channel : subscribedChannels.entrySet()) {
+                if (channel.getValue().getEndOfSubscriptionDate().isBefore(LocalDate.now())) {
+                    subscriptionService.removeExpiredChannel(subscribedChannels, channel, subscriberEntry);
+                    banExpiredUser(subscriber.getUserId(), channel.getKey());
+                }
+            }
+        }
+
+        subscriptionService.renewSubscribersFile();
+    }
+
+    @SneakyThrows
+    private void banExpiredUser(Long userId, String channelId) {
+        execute(BanChatMember.builder().userId(userId).chatId(channelId).build());
     }
 
     @SneakyThrows
