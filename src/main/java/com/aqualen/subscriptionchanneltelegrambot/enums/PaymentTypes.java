@@ -7,7 +7,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum PaymentTypes {
 
-    YOOMONEY("Юмани");
+    YOOMONEY("Yoomoney");
 
     final String name;
 

@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @Service
 public class PaymentService {
 
-    public static final String CHOOSE_PAYMENT_MESSAGE = "Выберите тип оплаты:";
+    public static final String CHOOSE_PAYMENT_MESSAGE = "Choose payment type:";
 
     private final Map<PaymentTypes, String> paymentTypes;
 
@@ -38,12 +38,12 @@ public class PaymentService {
         String channelName = channelService.getChannels().get(user.getChannelId()).getName();
         return SendInvoice.builder()
                 .chatId(chatId)
-                .title("Оплата подписки.")
-                .description(String.format("Канал: %s на период: %s.", channelName, periodName))
+                .title("Subscription payment.")
+                .description(String.format("Channel: %s for the period: %s.", channelName, periodName))
                 .currency("RUB")
                 .startParameter("test")
                 .providerToken(getToken(user))
-                .payload(String.format("Канал: %s, период: %s, юзер: %s.", user.getChannelId(),
+                .payload(String.format("Channel: %s, period: %s, user: %s.", user.getChannelId(),
                         periodName, user.getUsername()))
                 .price(LabeledPrice.builder().label(periodName).amount(getPrice(user)).build()
                 ).build();

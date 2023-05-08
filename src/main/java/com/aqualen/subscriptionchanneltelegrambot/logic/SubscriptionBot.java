@@ -14,12 +14,14 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerPreCheckoutQuery;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.BanChatMember;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.UnbanChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.ChatInviteLink;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -95,6 +97,11 @@ public class SubscriptionBot extends TelegramLongPollingBot {
                 !message.getSuccessfulPayment().getProviderPaymentChargeId().isEmpty()) {
             initSubscriptionActions(usersCache.get(username), chatId, message);
         }
+
+        execute(SetMyCommands.builder().command(
+                        BotCommand.builder().command("/start").
+                                description("Start the subscription process.").build()
+                ).build());
     }
 
     @SneakyThrows

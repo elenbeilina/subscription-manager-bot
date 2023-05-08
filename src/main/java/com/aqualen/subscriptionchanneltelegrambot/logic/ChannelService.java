@@ -18,7 +18,7 @@ import static com.aqualen.subscriptionchanneltelegrambot.util.BotUtils.fileToObj
 @Service
 public class ChannelService {
 
-    public static final String CHOOSE_CHANNEL_MESSAGE = "Выберите канал:";
+    public static final String CHOOSE_CHANNEL_MESSAGE = "Choose channel:";
     private final Map<String, String> channelNames;
     private final Map<String, Channel> channels;
 
